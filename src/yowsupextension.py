@@ -49,14 +49,12 @@ class YowsupExtension(DependencyProvider):
             except AuthError as e:
                 self.output("Auth Error, reason %s" % e)
             except ValueError as e:  
-                self.output(e);              
+                self.output(e)
             except KeyboardInterrupt:
                 self.output("\nYowsdown KeyboardInterrupt")
                 exit(0)
             except Exception as e:
-                self.output(e)
-                self.output("Whatsapp exited")
-                exit(0)
+                self.output("Could not send a message. Exception: %s" % e)
 
         t1 = threading.Thread(target=startThread)
         t1.daemon = True
