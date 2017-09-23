@@ -1,5 +1,7 @@
 import errno
+import inspect
 from time import sleep
+import yaml
 
 import os
 from flasgger import Swagger
@@ -16,6 +18,7 @@ CONFIG = {'AMQP_URI': "pyamqp://guest:guest@localhost"}
 
 TIMEOUT = 0.5
 TIMEOUTS_NUMBER = 6
+CONFIG_FILE = 'serviceconfig.yml'
 
 
 @app.route('/send', methods=['POST'])
@@ -71,7 +74,15 @@ def send():
     if status == 'success':
         msg = "The message was successfully sent"
     elif status is None:
-        msg = '{from: "", to:"", status: "undelivered"}'
+        # get current directory
+        current_directory = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        # reading username from config
+        full_config_file_path = '{}/{}'.format(current_directory, CONFIG_FILE)
+        stream = open(full_config_file_path, "r")
+        doc = yaml.load(stream)
+        _from = doc['YOWSUP_USERNAME']
+
+        msg = '{{from: "{}", to:"{}", status: "undelivered"}}'.format(_from, address)
 
     return msg, 200
 
