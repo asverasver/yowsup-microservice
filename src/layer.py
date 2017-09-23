@@ -23,6 +23,7 @@ from yowsup.common.optionalmodules import PILOptionalModule, AxolotlOptionalModu
 import urllib.request
 
 logger = logging.getLogger(__name__)
+STATUS_FILES_DIRECTORY = '~/statuses/'
 
 
 class SendReciveLayer(YowInterfaceLayer):
@@ -99,6 +100,14 @@ class SendReciveLayer(YowInterfaceLayer):
 
     @ProtocolEntityCallback("receipt")
     def onReceipt(self, entity):
+        status_filename = STATUS_FILES_DIRECTORY + 'lock'
+        try:
+            with open(status_filename, 'w+') as file:
+                file.seek(0)
+                file.write('success')
+                file.truncate()
+        except:
+            pass
         self.toLower(entity.ack())
 
     @ProtocolEntityCallback("ack")
