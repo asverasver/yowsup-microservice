@@ -106,8 +106,8 @@ class SendReciveLayer(YowInterfaceLayer):
                 file.seek(0)
                 file.write('success')
                 file.truncate()
-        except:
-            pass
+        except Exception as e:
+            self.output('Could not write to file {}. Exception: {}'.format(status_filename, str(e)))
         self.toLower(entity.ack())
 
     @ProtocolEntityCallback("ack")
