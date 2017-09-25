@@ -44,17 +44,22 @@ class YowsupExtension(DependencyProvider):
 
 
         def startThread():
-            try:
-                self.stack.loop(timeout=0.5, discrete=0.5)
-            except AuthError as e:
-                self.output("Auth Error, reason %s" % e)
-            except ValueError as e:  
-                self.output(e)
-            except KeyboardInterrupt:
-                self.output("\nYowsdown KeyboardInterrupt")
-                exit(0)
-            except Exception as e:
-                self.output("Could not send a message. Exception: %s" % e)
+            alive = False
+            while True:
+                try:
+                    if not alive:
+                        alive = True
+                        self.stack.loop(timeout=0.5, discrete=0.5)
+                except AuthError as e:
+                    self.output("Auth Error, reason %s" % e)
+                except ValueError as e:
+                    self.output(e)
+                except KeyboardInterrupt:
+                    self.output("\nYowsdown KeyboardInterrupt")
+                    exit(0)
+                except Exception as e:
+                    self.output("Could not send a message. Exception: %s" % e)
+                    alive = False
 
         t1 = threading.Thread(target=startThread)
         t1.daemon = True
