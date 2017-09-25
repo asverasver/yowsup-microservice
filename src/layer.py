@@ -100,14 +100,6 @@ class SendReciveLayer(YowInterfaceLayer):
 
     @ProtocolEntityCallback("receipt")
     def onReceipt(self, entity):
-        status_filename = STATUS_FILES_DIRECTORY + 'lock'
-        try:
-            with open(status_filename, 'w+') as file:
-                file.seek(0)
-                file.write('success')
-                file.truncate()
-        except Exception as e:
-            self.output('Could not write to file {}. Exception: {}'.format(status_filename, str(e)))
         self.toLower(entity.ack())
 
     @ProtocolEntityCallback("ack")
@@ -115,6 +107,12 @@ class SendReciveLayer(YowInterfaceLayer):
         # formattedDate = datetime.datetime.fromtimestamp(self.sentCache[entity.getId()][0]).strftime('%d-%m-%Y %H:%M')
         # print("%s [%s]:%s"%(self.username, formattedDate, self.sentCache[entity.getId()][1]))
         if entity.getClass() == "message":
+            status_filename = STATUS_FILES_DIRECTORY + 'lock'
+            try:
+                with open(status_filename, 'w') as file:
+                    file.write('success')
+            except Exception as e:
+                self.output('Could not write to file {}. Exception: {}'.format(status_filename, str(e)))
             self.output(entity.getId(), tag="Sent")
             # self.notifyInputThread()
 
@@ -154,7 +152,7 @@ class SendReciveLayer(YowInterfaceLayer):
         formattedDate = datetime.datetime.fromtimestamp(message.getTimestamp()).strftime('%Y-%m-%d %H:%M:%S')
         sender = message.getFrom() if not message.isGroupMessage() else "%s/%s" % (
             message.getParticipant(False), message.getFrom())
-               
+
         # convert message to json
         output = self.__class__.MESSAGE_FORMAT.format(
             FROM=sender,
@@ -178,7 +176,7 @@ class SendReciveLayer(YowInterfaceLayer):
             self.output(response.info())
         except Exception as e:
             self.output(e)
-        
+
         self.output(output, tag=None, prompt=not self.sendReceipts)
 
         if self.sendReceipts:

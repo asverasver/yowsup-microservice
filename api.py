@@ -38,13 +38,15 @@ def send():
                 raise
 
     status_filename = STATUS_FILES_DIRECTORY + 'lock'
+
+    # removing the file if it exists
+    try:
+        os.remove(status_filename)
+    except:
+        pass
+
     status = None
     try:
-        with open(status_filename, 'w+') as file:
-            file.seek(0)
-            file.write('sending')
-            file.truncate()
-
         with ClusterRpcProxy(CONFIG) as rpc:
             # asynchronously spawning and email notification
             rpc.yowsup.send(type, body, address)
@@ -54,10 +56,8 @@ def send():
         while status is None and timeouts < TIMEOUTS_NUMBER:
             timeouts += 1
             try:
-                with open(status_filename, 'r') as file:
-                    text = file.read()
-                    if text == 'success':
-                        status = 'success'
+                if os.path.isfile(status_filename):
+                    status = 'success'
 
                 if status is None:
                     sleep(TIMEOUT)
