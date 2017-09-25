@@ -23,7 +23,7 @@ from yowsup.common.optionalmodules import PILOptionalModule, AxolotlOptionalModu
 import urllib.request
 
 logger = logging.getLogger(__name__)
-STATUS_FILES_DIRECTORY = '~/statuses/'
+STATUS_FILES_DIRECTORY = '/tmp/statuses/'
 
 
 class SendReciveLayer(YowInterfaceLayer):

@@ -63,8 +63,8 @@ def send():
                     sleep(TIMEOUT)
             except:
                 pass
-    except:
-        pass
+    except Exception as e:
+        print('Error sending a message: {}'.format(str(e)))
     finally:
         try:
             os.remove(status_filename)
@@ -74,13 +74,17 @@ def send():
     if status == 'success':
         msg = "The message was successfully sent"
     elif status is None:
-        # get current directory
-        current_directory = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-        # reading username from config
-        full_config_file_path = '{}/{}'.format(current_directory, CONFIG_FILE)
-        stream = open(full_config_file_path, "r")
-        doc = yaml.load(stream)
-        _from = doc['YOWSUP_USERNAME']
+        # if the username is in environment variables
+        _from = os.getenv('USERNAME')
+        # if it is in config file
+        if _from is None:
+            # get current directory
+            current_directory = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+            # reading username from config
+            full_config_file_path = '{}/{}'.format(current_directory, CONFIG_FILE)
+            stream = open(full_config_file_path, "r")
+            doc = yaml.load(stream)
+            _from = doc['YOWSUP_USERNAME']
 
         msg = '{{from: "{}", to:"{}", status: "undelivered"}}'.format(_from, address)
 
