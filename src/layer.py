@@ -1,41 +1,30 @@
-from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
-from yowsup.layers.auth import YowAuthenticationProtocolLayer
-from yowsup.layers import YowLayerEvent, EventCallback
-from yowsup.layers.network import YowNetworkLayer
-import sys
-from yowsup.common import YowConstants
 import datetime
-import os
 import logging
-from yowsup.layers.protocol_groups.protocolentities import *
-from yowsup.layers.protocol_presence.protocolentities import *
-from yowsup.layers.protocol_messages.protocolentities import *
-from yowsup.layers.protocol_ib.protocolentities import *
-from yowsup.layers.protocol_iq.protocolentities import *
-from yowsup.layers.protocol_contacts.protocolentities import *
-from yowsup.layers.protocol_chatstate.protocolentities import *
-from yowsup.layers.protocol_privacy.protocolentities import *
-from yowsup.layers.protocol_media.protocolentities import *
-from yowsup.layers.protocol_media.mediauploader import MediaUploader
-from yowsup.layers.protocol_profiles.protocolentities import *
-from yowsup.common.tools import Jid
-from yowsup.common.optionalmodules import PILOptionalModule, AxolotlOptionalModule
+import sys
 import urllib.request
+from time import sleep
+
+from yowsup.layers import EventCallback
+from yowsup.layers.auth import YowAuthenticationProtocolLayer
+from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
+from yowsup.layers.network import YowNetworkLayer
+from yowsup.layers.protocol_messages.protocolentities import *
 
 logger = logging.getLogger(__name__)
 STATUS_FILES_DIRECTORY = '/tmp/statuses/'
+RECONNECT_TIMEOUT = 3
+# set -1 if it has to reconnect until it finally reconnects
+RECONNECT_ATTEMPTS = 30
 
 
 class SendReciveLayer(YowInterfaceLayer):
-
-
     MESSAGE_FORMAT = "{{\"from\":\"{FROM}\",\"to\":\"{TO}\",\"time\":\"{TIME}\",\"id\":\"{MESSAGE_ID}\",\"message\":\"{MESSAGE}\",\"type\":\"{TYPE}\"}}"
 
     DISCONNECT_ACTION_PROMPT = 0
 
     EVENT_SEND_MESSAGE = "org.openwhatsapp.yowsup.prop.queue.sendmessage"
-    
-    def __init__(self,tokenReSendMessage,urlReSendMessage,myNumber):
+
+    def __init__(self, tokenReSendMessage, urlReSendMessage, myNumber):
         super(SendReciveLayer, self).__init__()
         YowInterfaceLayer.__init__(self)
         self.accountDelWarnings = 0
@@ -44,11 +33,11 @@ class SendReciveLayer(YowInterfaceLayer):
         self.sendReceipts = True
         self.sendRead = True
         self.disconnectAction = self.__class__.DISCONNECT_ACTION_PROMPT
-        self.myNumber=myNumber
+        self.myNumber = myNumber
         self.credentials = None
-        
-        self.tokenReSendMessage=tokenReSendMessage
-        self.urlReSendMessage=urlReSendMessage
+
+        self.tokenReSendMessage = tokenReSendMessage
+        self.urlReSendMessage = urlReSendMessage
 
         # add aliases to make it user to use commands. for example you can then do:
         # /message send foobar "HI"
@@ -78,9 +67,6 @@ class SendReciveLayer(YowInterfaceLayer):
         self.output("Disconnected: %s" % layerEvent.getArg("reason"))
         if self.disconnectAction == self.__class__.DISCONNECT_ACTION_PROMPT:
             self.connected = False
-            # self.notifyInputThread()
-        else:
-            os._exit(os.EX_OK)
 
     def assertConnected(self):
         if self.connected:
@@ -88,7 +74,6 @@ class SendReciveLayer(YowInterfaceLayer):
         else:
             self.output("Not connected", tag="Error", prompt=False)
             return False
-
 
     @ProtocolEntityCallback("chatstate")
     def onChatstate(self, entity):
@@ -166,13 +151,13 @@ class SendReciveLayer(YowInterfaceLayer):
         req = urllib.request.Request(self.urlReSendMessage)
         req.add_header('Content-Type', 'application/json; charset=utf-8')
 
-        jsondataasbytes = output.encode('utf-8')   # needs to be bytes
+        jsondataasbytes = output.encode('utf-8')  # needs to be bytes
         req.add_header('Content-Length', len(jsondataasbytes))
-        req.add_header('TOKEN', self.tokenReSendMessage )
+        req.add_header('TOKEN', self.tokenReSendMessage)
 
         # resend message to url from configuration
         try:
-            response = urllib.request.urlopen(req, jsondataasbytes)
+            response = urllib.request.urlopen(req, data=jsondataasbytes)
             self.output(response.info())
         except Exception as e:
             self.output(e)
@@ -184,7 +169,6 @@ class SendReciveLayer(YowInterfaceLayer):
             self.output("Sent delivered receipt" + " and Read" if self.sendRead else "",
                         tag="Message %s" % message.getId())
 
-
     @EventCallback(EVENT_SEND_MESSAGE)
     def doSendMesage(self, layerEvent):
         content = layerEvent.getArg("msg")
@@ -193,9 +177,28 @@ class SendReciveLayer(YowInterfaceLayer):
         jid = number
 
         if self.assertConnected():
-            outgoingMessage = TextMessageProtocolEntity(
-                content.encode("utf-8") if sys.version_info >= (3, 0) else content, to=self.aliasToJid(number))
-            self.toLower(outgoingMessage)
+            self.send_message(content, number)
+            self.output("Send Message to %s : %s" % (number, content))
+        else:
+            is_reconnected = self.reconnecting()
+
+            if is_reconnected:
+                self.send_message(content, number)
+                self.output("Send Message to %s : %s" % (number, content))
+
+    def send_message(self, content, number):
+        outgoingMessage = TextMessageProtocolEntity(content.encode("utf-8") if sys.version_info >= (3, 0) else content, to=self.aliasToJid(number))
+        self.toLower(outgoingMessage)
+
+    def reconnecting(self):
+        attempts = 0
+        while (attempts < RECONNECT_ATTEMPTS or RECONNECT_ATTEMPTS == -1) and not self.connected:
+            attempts += 1
+            self.output('Reconnecting... Attempt {}'.format(attempts))
+            self.connect()
+            sleep(RECONNECT_TIMEOUT)
+
+        return self.connected
 
     def getTextMessageBody(self, message):
         return message.getBody()
