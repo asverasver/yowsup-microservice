@@ -1,9 +1,9 @@
 import errno
 import inspect
 from time import sleep
-import yaml
 
 import os
+import yaml
 from flasgger import Swagger
 from flasgger.utils import swag_from
 from flask import Flask, request
